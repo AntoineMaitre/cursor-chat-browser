@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { Button } from "./ui/button"
 import { ThemeToggle } from "./theme-toggle"
-import { Settings, Search } from "lucide-react"
+import { Settings, Search, Download } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip"
 import { Input } from "./ui/input"
 import { useRouter, usePathname } from "next/navigation"
@@ -59,7 +59,16 @@ export function Navbar() {
               <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-foreground" />
             )}
           </div>
-          
+
+          <div className="relative">
+            <Button variant="ghost" asChild>
+              <Link href="/export">Export</Link>
+            </Button>
+            {pathname.startsWith('/export') && (
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-foreground" />
+            )}
+          </div>
+
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="ghost" size="icon" asChild>
