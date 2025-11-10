@@ -1,7 +1,7 @@
 "use client"
 
 import { useSearchParams } from "next/navigation"
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import Link from "next/link"
 import { format } from "date-fns"
 import { Card } from "@/components/ui/card"
@@ -19,7 +19,7 @@ interface SearchResult {
   type: 'chat' | 'composer'
 }
 
-export default function SearchPage() {
+function SearchContent() {
   const searchParams = useSearchParams()
   const query = searchParams.get('q')
   const type = searchParams.get('type') || 'all'
@@ -114,5 +114,13 @@ export default function SearchPage() {
         ))}
       </div>
     </div>
+  )
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense fallback={<Loading message="Loading search..." />}>
+      <SearchContent />
+    </Suspense>
   )
 } 

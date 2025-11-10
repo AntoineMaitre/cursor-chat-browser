@@ -351,10 +351,11 @@ function createProjectNameToWorkspaceIdMap(workspaceEntries: Array<{name: string
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   let globalDb: any = null
-  
+
   try {
     const workspacePath = resolveWorkspacePath()
     const globalDbPath = path.join(workspacePath, '..', 'globalStorage', 'state.vscdb')
@@ -407,11 +408,13 @@ export async function GET(
         if (!chatId) continue
         try {
           const codeBlockDiff = JSON.parse(row.value)
-          if (!codeBlockDiffMap[chatId]) codeBlockDiffMap[chatId] = []
-          codeBlockDiffMap[chatId].push({
-            ...codeBlockDiff,
-            diffId: row.key.split(':')[2]
-          })
+          if (codeBlockDiff && typeof codeBlockDiff === 'object') {
+            if (!codeBlockDiffMap[chatId]) codeBlockDiffMap[chatId] = []
+            codeBlockDiffMap[chatId].push({
+              ...codeBlockDiff,
+              diffId: row.key.split(':')[2]
+            })
+          }
         } catch (parseError) {
           console.error('Error parsing codeBlockDiff:', parseError)
         }
@@ -427,11 +430,13 @@ export async function GET(
           const contextId = parts[2]
           try {
             const context = JSON.parse(row.value)
-            if (!messageRequestContextMap[chatId]) messageRequestContextMap[chatId] = []
-            messageRequestContextMap[chatId].push({
-              ...context,
-              contextId: contextId
-            })
+            if (context && typeof context === 'object') {
+              if (!messageRequestContextMap[chatId]) messageRequestContextMap[chatId] = []
+              messageRequestContextMap[chatId].push({
+                ...context,
+                contextId: contextId
+              })
+            }
           } catch (parseError) {
             console.error('Error parsing messageRequestContext:', parseError)
           }
@@ -447,7 +452,7 @@ export async function GET(
           const composerId = parts[1]
           try {
             const context = JSON.parse(row.value)
-            if (context.projectLayouts && Array.isArray(context.projectLayouts)) {
+            if (context && context.projectLayouts && Array.isArray(context.projectLayouts)) {
               if (!projectLayoutsMap[composerId]) {
                 projectLayoutsMap[composerId] = []
               }
@@ -480,7 +485,12 @@ export async function GET(
         
         try {
           const composerData = JSON.parse(row.value)
-          
+
+          // Skip if parsed data is null or not an object
+          if (!composerData || typeof composerData !== 'object') {
+            continue
+          }
+
           // Determine which project this conversation belongs to using unified logic
           const projectId = determineProjectForConversation(
             composerData,
@@ -490,12 +500,12 @@ export async function GET(
             workspaceEntries,
             bubbleMap
           )
-          
+
           // Only process conversations that belong to this specific workspace
-          if (projectId !== params.id) {
+          if (projectId !== id) {
             continue
           }
-          
+
           console.log(`Processing workspace conversation ${composerId}: ${composerData.name || 'Untitled'}`)
           
           // Get the conversation headers to understand the structure
@@ -625,7 +635,7 @@ export async function GET(
         }
       }
       
-      console.log(`Returning ${response.tabs.length} conversations for workspace ${params.id}`)
+      console.log(`Returning ${response.tabs.length} conversations for workspace ${id}`)
     } else {
       return NextResponse.json({ error: 'Global storage not found' }, { status: 404 })
     }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from 'react'
+import { use, useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from "@/components/ui/card"
@@ -25,10 +25,11 @@ interface WorkspaceState {
   isLoading: boolean;
 }
 
-export default function WorkspacePage({ params }: { params: { id: string } }) {
+export default function WorkspacePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
   const searchParams = useSearchParams()
   const [state, setState] = useState<WorkspaceState>({
-    projectName: params.id === 'global' ? 'Global Storage' : `Project ${params.id.slice(0, 8)}`,
+    projectName: id === 'global' ? 'Global Storage' : `Project ${id.slice(0, 8)}`,
     tabs: [],
     composers: [],
     selectedId: searchParams.get('tab'),
@@ -44,7 +45,7 @@ export default function WorkspacePage({ params }: { params: { id: string } }) {
 
   const fetchWorkspace = useCallback(async () => {
     try {
-      const tabsRes = await fetch(`/api/workspaces/${params.id}/tabs`)
+      const tabsRes = await fetch(`/api/workspaces/${id}/tabs`)
       const data = await tabsRes.json()
 
       setState(prev => ({
@@ -57,7 +58,7 @@ export default function WorkspacePage({ params }: { params: { id: string } }) {
       console.error('Failed to fetch workspace:', error)
       setState(prev => ({ ...prev, isLoading: false }))
     }
-  }, [params.id])
+  }, [id])
 
   useEffect(() => {
     fetchWorkspace()
