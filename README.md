@@ -14,9 +14,11 @@ A web application for browsing and managing chat histories from the Cursor edito
   - Markdown files
   - HTML documents (with syntax highlighting)
   - PDF documents
+  - **JSON format for semantic search and pattern analysis** ✨
 - 🎨 Syntax highlighted code blocks
 - 📌 Bookmarkable chat URLs
 - ⚙️ Automatic workspace path detection
+- 📊 **Conversation data export for building RAG systems and analyzing best practices**
 
 ## Prerequisites
 
@@ -78,10 +80,28 @@ If automatic detection fails, you can manually set the path in the Configuration
   - Timestamp
 
 ### Exporting
+
+#### Individual Conversation Export
 Each log can be exported as:
-- Markdown: Plain text with code blocks
-- HTML: Styled document with syntax highlighting
-- PDF: Formatted document suitable for sharing
+- **Markdown**: Plain text with code blocks
+- **HTML**: Styled document with syntax highlighting
+- **PDF**: Formatted document suitable for sharing
+
+#### Bulk Data Export for Analysis
+Access the **Export** page to export all conversations in structured JSON format, optimized for:
+- **Semantic Search**: Create embeddings with OpenAI, Cohere, or local models
+- **Pattern Analysis**: Identify which prompting strategies work best
+- **RAG Systems**: Build custom retrieval-augmented generation systems
+- **Documentation**: Extract best practices and methodologies from successful conversations
+- **Vector Databases**: Import into Pinecone, Qdrant, Weaviate, ChromaDB, etc.
+
+Each exported conversation includes:
+- Full message history with user/assistant roles
+- Timestamps and metadata
+- Code context and file references
+- Conversation statistics and summaries
+
+See [EXPORT_GUIDE.md](EXPORT_GUIDE.md) for detailed examples and integration guides.
 
 ## Development
 
