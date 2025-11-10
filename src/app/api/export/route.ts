@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server'
 import path from 'path'
 import fs from 'fs/promises'
 import { existsSync } from 'fs'
-import sqlite3 from 'sqlite3'
-import { open } from 'sqlite'
+import Database from 'better-sqlite3'
 import { ComposerChat, ComposerData, ChatTab } from '@/types/workspace'
 import { resolveWorkspacePath } from '@/utils/workspace-path'
 
@@ -157,7 +156,7 @@ function processComposerChat(composer: ComposerChat, workspaceId: string, worksp
 
 function processChatTab(chatTab: ChatTab, workspaceId: string, workspaceFolder?: string): ExportedConversation {
   const messages: ExportedMessage[] = []
-  const timestamp = new Date(chatTab.timestamp).getTime()
+  const timestamp = chatTab.timestamp
 
   // Process chat bubbles
   chatTab.bubbles.forEach((bubble, index) => {
@@ -166,21 +165,16 @@ function processChatTab(chatTab: ChatTab, workspaceId: string, workspaceFolder?:
         id: `${chatTab.id}-${index}`,
         role: bubble.type === 'ai' ? 'assistant' : 'user',
         content: bubble.text,
-        timestamp: timestamp + (index * 1000), // Approximate timestamps
-        formattedTimestamp: formatTimestamp(timestamp + (index * 1000)),
-        context: {
-          codeSelections: bubble.selections?.map(s => s.text).filter(Boolean)
-        },
-        metadata: {
-          modelType: bubble.modelType
-        }
+        timestamp: bubble.timestamp || (timestamp + index * 1000),
+        formattedTimestamp: formatTimestamp(bubble.timestamp || (timestamp + index * 1000)),
+        context: {},
+        metadata: {}
       })
     }
   })
 
   const userMessages = messages.filter(m => m.role === 'user')
   const assistantMessages = messages.filter(m => m.role === 'assistant')
-  const hasCodeContext = chatTab.bubbles.some(b => b.selections && b.selections.length > 0)
 
   const avgLength = messages.length > 0
     ? messages.reduce((sum, m) => sum + m.content.length, 0) / messages.length
@@ -203,7 +197,7 @@ function processChatTab(chatTab: ChatTab, workspaceId: string, workspaceFolder?:
       messageCount: messages.length,
       userMessageCount: userMessages.length,
       assistantMessageCount: assistantMessages.length,
-      hasCodeContext,
+      hasCodeContext: false,
       filesReferenced: [],
       averageMessageLength: Math.round(avgLength)
     }
@@ -237,20 +231,17 @@ export async function GET(request: Request) {
           console.log(`No workspace.json found for ${entry.name}`)
         }
 
-        const db = await open({
-          filename: dbPath,
-          driver: sqlite3.Database
-        })
+        const db = new Database(dbPath, { readonly: true })
 
         // Get composer chats
         if (includeComposers) {
-          const composerResult = await db.get(`
+          const composerResult = db.prepare(`
             SELECT value FROM ItemTable
             WHERE [key] = 'composer.composerData'
-          `)
+          `).get()
 
-          if (composerResult?.value) {
-            const composerData = JSON.parse(composerResult.value) as ComposerData
+          if (composerResult && (composerResult as any).value) {
+            const composerData = JSON.parse((composerResult as any).value) as ComposerData
             composerData.allComposers.forEach(composer => {
               conversations.push(processComposerChat(composer, entry.name, workspaceFolder))
             })
@@ -259,13 +250,13 @@ export async function GET(request: Request) {
 
         // Get chat tabs (AI Chat)
         if (includeChats) {
-          const chatResult = await db.get(`
+          const chatResult = db.prepare(`
             SELECT value FROM ItemTable
             WHERE [key] = 'workbench.panel.aichat.view.aichat.chatdata'
-          `)
+          `).get()
 
-          if (chatResult?.value) {
-            const chatData = JSON.parse(chatResult.value)
+          if (chatResult && (chatResult as any).value) {
+            const chatData = JSON.parse((chatResult as any).value)
             if (chatData.tabs) {
               chatData.tabs.forEach((tab: ChatTab) => {
                 conversations.push(processChatTab(tab, entry.name, workspaceFolder))
@@ -274,7 +265,7 @@ export async function GET(request: Request) {
           }
         }
 
-        await db.close()
+        db.close()
       }
     }
 

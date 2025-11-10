@@ -47,7 +47,7 @@ export default function ExportPage() {
   }
 
   return (
-    <div className="max-w-4xl">
+    <div className="max-w-4xl mx-auto p-8">
       <h1 className="text-4xl font-bold mb-4">Export Conversations</h1>
       <p className="text-muted-foreground mb-8">
         Exportez vos conversations pour la recherche sémantique, l'analyse de patterns et la création d'une base documentaire.

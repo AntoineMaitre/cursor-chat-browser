@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server'
 import path from 'path'
-import fs from 'fs/promises'
 import { existsSync } from 'fs'
-import sqlite3 from 'sqlite3'
-import { open } from 'sqlite'
+import Database from 'better-sqlite3'
 import { resolveWorkspacePath } from '@/utils/workspace-path'
 
 /**
@@ -18,8 +16,9 @@ import { resolveWorkspacePath } from '@/utils/workspace-path'
  */
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   const { searchParams } = new URL(request.url)
   const workspaceId = searchParams.get('workspaceId')
   const type = searchParams.get('type') // 'chat' or 'composer'
@@ -55,22 +54,19 @@ export async function GET(
       )
     }
 
-    const db = await open({
-      filename: dbPath,
-      driver: sqlite3.Database
-    })
+    const db = new Database(dbPath, { readonly: true })
 
     if (type === 'composer') {
       // Get composer from state.vscdb
-      const result = await db.get(`
+      const result = db.prepare(`
         SELECT value FROM ItemTable
         WHERE [key] = 'composer.composerData'
-      `)
+      `).get()
 
-      if (result?.value) {
-        const data = JSON.parse(result.value)
+      if (result && (result as any).value) {
+        const data = JSON.parse((result as any).value)
         const composer = data.allComposers.find(
-          (c: any) => c.composerId === params.id
+          (c: any) => c.composerId === id
         )
 
         if (composer) {
@@ -79,7 +75,7 @@ export async function GET(
             composer.conversation = []
           }
 
-          await db.close()
+          db.close()
           return NextResponse.json({
             success: true,
             conversation: composer,
@@ -92,17 +88,17 @@ export async function GET(
         }
       }
     } else if (type === 'chat') {
-      const result = await db.get(`
+      const result = db.prepare(`
         SELECT value FROM ItemTable
         WHERE [key] = 'workbench.panel.aichat.view.aichat.chatdata'
-      `)
+      `).get()
 
-      if (result?.value) {
-        const data = JSON.parse(result.value)
-        const chat = data.tabs.find((t: any) => t.tabId === params.id)
+      if (result && (result as any).value) {
+        const data = JSON.parse((result as any).value)
+        const chat = data.tabs.find((t: any) => t.tabId === id)
 
         if (chat) {
-          await db.close()
+          db.close()
           return NextResponse.json({
             success: true,
             conversation: chat,
@@ -116,11 +112,11 @@ export async function GET(
       }
     }
 
-    await db.close()
+    db.close()
     return NextResponse.json(
       {
         error: 'Conversation not found',
-        message: `No ${type} conversation found with ID ${params.id} in workspace ${workspaceId}`
+        message: `No ${type} conversation found with ID ${id} in workspace ${workspaceId}`
       },
       { status: 404 }
     )

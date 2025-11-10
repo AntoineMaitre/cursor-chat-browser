@@ -2,41 +2,36 @@ import { NextResponse } from 'next/server'
 import path from 'path'
 import { existsSync } from 'fs'
 import fs from 'fs/promises'
-import sqlite3 from 'sqlite3'
-import { open } from 'sqlite'
+import Database from 'better-sqlite3'
 import { ComposerChat, ComposerData } from '@/types/workspace'
 import { resolveWorkspacePath } from '@/utils/workspace-path'
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const workspacePath = resolveWorkspacePath()
     const entries = await fs.readdir(workspacePath, { withFileTypes: true })
-    
+
     for (const entry of entries) {
       if (entry.isDirectory()) {
         const dbPath = path.join(workspacePath, entry.name, 'state.vscdb')
-        
+
         if (!existsSync(dbPath)) continue
-        
-        const db = await open({
-          filename: dbPath,
-          driver: sqlite3.Database
-        })
-        
-        const result = await db.get(`
-          SELECT value FROM ItemTable 
+
+        const db = new Database(dbPath, { readonly: true })
+        const result = db.prepare(`
+          SELECT value FROM ItemTable
           WHERE [key] = 'composer.composerData'
-        `)
-        
-        await db.close()
-        
-        if (result?.value) {
-          const composerData = JSON.parse(result.value) as ComposerData
+        `).get()
+        db.close()
+
+        if (result && (result as any).value) {
+          const composerData = JSON.parse((result as any).value) as ComposerData
           const composer = composerData.allComposers.find(
-            (c: ComposerChat) => c.composerId === params.id
+            (c: ComposerChat) => c.composerId === id
           )
           if (composer) {
             return NextResponse.json(composer)

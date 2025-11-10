@@ -6,12 +6,13 @@ import { resolveWorkspacePath } from '@/utils/workspace-path'
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const workspacePath = resolveWorkspacePath()
-    const dbPath = path.join(workspacePath, params.id, 'state.vscdb')
-    const workspaceJsonPath = path.join(workspacePath, params.id, 'workspace.json')
+    const dbPath = path.join(workspacePath, id, 'state.vscdb')
+    const workspaceJsonPath = path.join(workspacePath, id, 'workspace.json')
 
     if (!existsSync(dbPath)) {
       return NextResponse.json({ error: 'Workspace not found' }, { status: 404 })
@@ -24,11 +25,11 @@ export async function GET(
       const workspaceData = JSON.parse(await fs.readFile(workspaceJsonPath, 'utf-8'))
       folder = workspaceData.folder
     } catch (error) {
-      console.log(`No workspace.json found for ${params.id}`)
+      console.log(`No workspace.json found for ${id}`)
     }
 
     return NextResponse.json({
-      id: params.id,
+      id: id,
       path: dbPath,
       folder: folder,
       lastModified: stats.mtime.toISOString()
