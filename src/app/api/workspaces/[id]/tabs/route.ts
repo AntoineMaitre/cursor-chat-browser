@@ -351,10 +351,11 @@ function createProjectNameToWorkspaceIdMap(workspaceEntries: Array<{name: string
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   let globalDb: any = null
-  
+
   try {
     const workspacePath = resolveWorkspacePath()
     const globalDbPath = path.join(workspacePath, '..', 'globalStorage', 'state.vscdb')
@@ -492,7 +493,7 @@ export async function GET(
           )
           
           // Only process conversations that belong to this specific workspace
-          if (projectId !== params.id) {
+          if (projectId !== id) {
             continue
           }
           
@@ -625,7 +626,7 @@ export async function GET(
         }
       }
       
-      console.log(`Returning ${response.tabs.length} conversations for workspace ${params.id}`)
+      console.log(`Returning ${response.tabs.length} conversations for workspace ${id}`)
     } else {
       return NextResponse.json({ error: 'Global storage not found' }, { status: 404 })
     }

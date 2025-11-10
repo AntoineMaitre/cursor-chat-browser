@@ -1,14 +1,22 @@
 import { NextResponse } from 'next/server'
 import { marked } from 'marked'
 import DOMPurify from 'isomorphic-dompurify'
-import pdfMake from 'pdfmake/build/pdfmake'
-import pdfFonts from 'pdfmake/build/vfs_fonts'
 
-// Initialize pdfmake with fonts
-pdfMake.vfs = pdfFonts.pdfMake.vfs
+// pdfMake will be loaded dynamically to avoid build issues
 
-export async function POST(request: Request) {
+export async function POST(request: Request): Promise<NextResponse> {
   try {
+    // Dynamically import pdfmake to avoid build-time issues
+    const pdfMake = (await import('pdfmake/build/pdfmake')).default
+    const pdfFonts = (await import('pdfmake/build/vfs_fonts')).default
+
+    // Initialize fonts
+    // @ts-ignore - pdfFonts type definitions are outdated
+    if (pdfFonts && pdfFonts.pdfMake && pdfFonts.pdfMake.vfs) {
+      // @ts-ignore
+      pdfMake.vfs = pdfFonts.pdfMake.vfs
+    }
+
     const { markdown, title } = await request.json()
     
     // Parse markdown to get structured content
@@ -158,7 +166,7 @@ export async function POST(request: Request) {
     
     return new Promise((resolve) => {
       pdfDoc.getBuffer((buffer) => {
-        resolve(new NextResponse(buffer, {
+        resolve(new NextResponse(new Uint8Array(buffer), {
           headers: {
             'Content-Type': 'application/pdf',
             'Content-Disposition': `attachment; filename="${title}.pdf"`
